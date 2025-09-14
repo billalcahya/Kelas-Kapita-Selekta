@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Halaman Webix</title>
+    <link rel="stylesheet" href="https://cdn.webix.com/edge/webix.css" />
+    <script src="https://cdn.webix.com/edge/webix.js"></script>
+  </head>
+  <body>
+    <script>
+      webix.ready(function () {
+        webix.ui({
+          rows: [
+            {
+              view: "form",
+              id: "myForm",
+              elements: [
+                { view: "text", label: "ID", name: "id" },
+                { view: "text", label: "Nama", name: "name" },
+                { view: "text", label: "Kategori", name: "category" },
+                { view: "text", label: "Stok", name: "stock" },
+                { view: "text", label: "Harga", name: "price" },
+                { view: "text", label: "Lokasi", name: "location" },
+                {
+                  cols: [
+                    { view: "button", value: "Tambah Produk", width: 150 },
+                    {},
+                    {},
+                  ],
+                },
+              ],
+            },
+            {
+              view: "datatable",
+              id:"myTable",
+              editable:true,
+              columns: [
+                {
+                  id: "_id",
+                  header: "ID",
+                },
+                {
+                  id: "name",
+                  header: "Nama",
+                },
+                {
+                  id: "category",
+                  header: "Kategori",
+                },
+                {
+                  id: "stock",
+                  header: "Stok",
+                },
+                {
+                  id: "location",
+                  header: "Lokasi",
+                },
+              ],
+                url : "http://127.0.0.1:5000/api/data"
+            },
+          ],
+        });
+      });
+    </script>
+  </body>
+</html>
