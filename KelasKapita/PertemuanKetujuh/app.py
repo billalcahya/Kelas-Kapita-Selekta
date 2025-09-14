@@ -69,17 +69,23 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        if username in users and password == users[username]["password"]:
-            session["username"] = username
-            session["role"] = users[username]["role"]
-            flash("Login berhasil", "success")
-            return redirect(url_for("index"))
+        user = mongo.find(MONGODB_COLLECTION_USER, {"_id": username}, multi=False)
 
+        if user.get("status") and user.get("data"):
+            db_user = user["data"]
+            # Cek password
+            if password == db_user["password"]:
+                session["username"] = db_user["_id"]
+                session["role"] = db_user["role"]
+                flash("Login berhasil", "success")
+                return redirect(url_for("index"))
+            else:
+                flash("Password salah", "error")
         else:
-            flash("Username atau password salah", "error")
-            return render_template("login.html")
-    else:
+            flash("Username tidak ditemukan", "error")
+
         return render_template("login.html")
+    return render_template("login.html")
 
 
 @app.route("/api/products", methods=["GET"])
@@ -92,40 +98,52 @@ def get_products():
     return result_products
 
 
-@app.route("/api/products/<int:product_id>", methods=["GET"])
+@app.route("/api/products/<string:product_id>", methods=["GET"])
 def get_product(product_id):
-    product = next((p for p in products if p["id"] == product_id), None)
-    if product:
-        return jsonify(product)
+    product = mongo.find(MONGODB_COLLECTION_PRODUCTS, {"_id": product_id}, multi=False)
+    if product.get("status") and product.get("data"):
+        return jsonify(product["data"])
     return jsonify({"error": "Product not found"}), 404
 
 
-@app.route("/api/products/<int:product_id>", methods=["PUT"])
+@app.route("/api/products/<string:product_id>", methods=["PUT"])
 def update_product(product_id):
     data = request.get_json()
-    for product in products:
-        if product["id"] == product_id:
-            product["name"] = data["name"]
-            product["category"] = data["category"]
-            product["stock"] = data["stock"]
-            product["price"] = data["price"]
-            product["location"] = data["location"]
-            return jsonify(product)
+    update_data = {
+        "name": data["name"],
+        "category": data["category"],
+        "stock": int(data["stock"]),
+        "price": int(data["price"]),
+        "location": data["location"],
+    }
+    result = mongo.update(MONGODB_COLLECTION_PRODUCTS, {"_id": product_id}, update_data)
+    if result.get("status"):
+        return jsonify({"message": "Product updated", "data": update_data})
     return jsonify({"error": "Product not found"}), 404
 
 
-@app.route("/api/products/<int:product_id>/stock", methods=["PATCH"])
+@app.route("/api/products/<string:product_id>/stock", methods=["PATCH"])
 def update_stock(product_id):
     data = request.get_json()
-    for product in products:
-        if product["id"] == product_id:
-            qty = data.get("quantity", 1)
-            if data["action"] == "add":
-                product["stock"] += qty
-            elif data["action"] == "subtract":
-                product["stock"] = max(0, product["stock"] - qty)
-            return jsonify(product)
-    return jsonify({"error": "Product not found"}), 404
+    qty = data.get("quantity", 1)
+    action = data.get("action")
+
+    product = mongo.find(MONGODB_COLLECTION_PRODUCTS, {"_id": product_id}, multi=False)
+    if not product.get("status") or not product.get("data"):
+        return jsonify({"error": "Product not found"}), 404
+
+    current_stock = int(product["data"]["stock"])
+    if action == "add":
+        new_stock = current_stock + qty
+    elif action == "subtract":
+        new_stock = max(0, current_stock - qty)
+    else:
+        return jsonify({"error": "Invalid action"}), 400
+
+    result = mongo.update(
+        MONGODB_COLLECTION_PRODUCTS, {"_id": product_id}, {"stock": new_stock}
+    )
+    return jsonify({"message": "Stock updated", "new_stock": new_stock})
 
 
 # POST - Menambah produk baru
@@ -174,18 +192,12 @@ def add_products():
     return jsonify(result_insert), 201
 
 
-@app.route("/api/products/<int:product_id>", methods=["DELETE"])
+@app.route("/api/products/<string:product_id>", methods=["DELETE"])
 def delete_products(product_id):
-    global products
-
-    # Tahap 4 : Menghapus produk dengan loop dan list baru
-    new_products = []
-    for product in products:
-        if product["id"] != product_id:
-            new_products.append(product)
-
-    products = new_products
-    return jsonify({"message": "Product deleted"})
+    result = mongo.delete(MONGODB_COLLECTION_PRODUCTS, {"_id": product_id})
+    if result.get("status"):
+        return jsonify({"message": "Product deleted"})
+    return jsonify({"error": "Product not found"}), 404
 
 
 if __name__ == "__main__":
