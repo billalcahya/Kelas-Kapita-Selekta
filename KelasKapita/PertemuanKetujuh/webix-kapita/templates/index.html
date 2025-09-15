@@ -9,59 +9,81 @@
   </head>
   <body>
     <script>
-      webix.ready(function () {
-        webix.ui({
-          rows: [
-            {
-              view: "form",
-              id: "myForm",
-              elements: [
-                { view: "text", label: "ID", name: "id" },
-                { view: "text", label: "Nama", name: "name" },
-                { view: "text", label: "Kategori", name: "category" },
-                { view: "text", label: "Stok", name: "stock" },
-                { view: "text", label: "Harga", name: "price" },
-                { view: "text", label: "Lokasi", name: "location" },
-                {
-                  cols: [
-                    { view: "button", value: "Tambah Produk", width: 150 },
-                    {},
-                    {},
-                  ],
+     webix.ready(function () {
+  if ($$("productForm")) $$("productForm").destructor();
+  if ($$("productTable")) $$("productTable").destructor();
+
+  webix.ui({
+    rows: [
+      {
+        view: "form",
+        id: "productForm",
+        elements: [
+          { view: "text", label: "Nama", name: "name" },
+          { view: "text", label: "Kategori", name: "category" },
+          { view: "text", label: "Stok", name: "stock" },
+          { view: "text", label: "Harga", name: "price" },
+          { view: "text", label: "Lokasi", name: "location" },
+          {
+            cols: [
+              {
+                view: "button",
+                value: "Tambah Produk",
+                width: 150,
+                click: function () {
+                  const form = $$("productForm");
+                  if (form.validate()) {
+                    const values = form.getValues();
+                    webix
+                      .ajax()
+                      .headers({ "Content-Type": "application/json" })
+                      .post(
+                        "http://127.0.0.1:5000/api/data",
+                        JSON.stringify(values)
+                      )
+                      .then(function (res) {
+                        webix.message("Produk berhasil ditambahkan");
+                        $$("productTable").clearAll();
+                        $$("productTable").load("http://127.0.0.1:5000/api/data");
+                        form.clear();
+                      })
+                      .catch(function (err) {
+                        webix.message({ type: "error", text: "Gagal menambahkan produk" });
+                        console.error(err);
+                      });
+                  }
                 },
-              ],
-            },
-            {
-              view: "datatable",
-              id:"myTable",
-              editable:true,
-              columns: [
-                {
-                  id: "_id",
-                  header: "ID",
-                },
-                {
-                  id: "name",
-                  header: "Nama",
-                },
-                {
-                  id: "category",
-                  header: "Kategori",
-                },
-                {
-                  id: "stock",
-                  header: "Stok",
-                },
-                {
-                  id: "location",
-                  header: "Lokasi",
-                },
-              ],
-                url : "http://127.0.0.1:5000/api/data"
-            },
-          ],
-        });
-      });
+              },
+            ],
+          },
+        ],
+        rules: {
+          name: webix.rules.isNotEmpty,
+          category: webix.rules.isNotEmpty,
+          stock: webix.rules.isNumber,
+          price: webix.rules.isNumber,
+          location: webix.rules.isNotEmpty,
+        },
+      },
+      {
+        view: "datatable",
+        id: "productTable",
+        columns: [
+          { id: "_id", header: "ID" },
+          { id: "name", header: "Nama" },
+          { id: "category", header: "Kategori" },
+          { id: "stock", header: "Stok" },
+          { id: "price", header: "Harga" },
+          { id: "location", header: "Lokasi" },
+        ],
+        url: "http://127.0.0.1:5000/api/data",
+        autoheight: true,
+        autowidth: true,
+      },
+    ],
+  });
+});
+
     </script>
   </body>
 </html>
