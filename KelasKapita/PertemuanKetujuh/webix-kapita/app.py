@@ -1,6 +1,11 @@
 from flask import Flask, request, render_template, jsonify
 from pymongo import MongoClient
-from config import MONGODB_COLLECTION_PRODUCTS,MONGODB_COLLECTION_USER,MONGODB_CONNECTION_STRING,MONGODB_DATABASE_NAME
+from config import (
+    MONGODB_COLLECTION_PRODUCTS,
+    MONGODB_COLLECTION_USER,
+    MONGODB_CONNECTION_STRING,
+    MONGODB_DATABASE_NAME,
+)
 
 app = Flask(__name__)
 app.secret_key = "demo_session_kapita"
@@ -9,27 +14,26 @@ client = MongoClient(MONGODB_CONNECTION_STRING)
 db = client[MONGODB_DATABASE_NAME]
 collection = db[MONGODB_COLLECTION_PRODUCTS]
 
+
 @app.route("/")
 def index():
     return render_template("index.html")
     pass
 
 
-@app.route("/api/data", methods=['GET'])
+@app.route("/api/data", methods=["GET"])
 def get_all_data():
     documents = list(collection.find())
     return jsonify(documents)
     pass
 
-@app.route('/api/data', methods=['POST'])
+
+@app.route("/api/data", methods=["POST"])
 def add_products():
     data = request.get_json()
-    
-    products = db[MONGODB_COLLECTION_PRODUCTS].find(
-            {},
-            {"_id": 1}
-        ).sort("_id", 1)
-        
+
+    products = db[MONGODB_COLLECTION_PRODUCTS].find({}, {"_id": 1}).sort("_id", 1)
+
     max_id = 0
     for item in products:
         try:
@@ -38,51 +42,94 @@ def add_products():
                 max_id = num
         except:
             continue
-            
+
     new_id = f"PRD{max_id + 1:03d}"
-    
+
     new_product = {
-        "_id" : new_id,
-        "name" : data["name"],
-        "category" : data["category"],
-        "stock" : int(data["stock"]),
-        "price" : int(data["price"]),
-        "location" : data["location"]
+        "_id": new_id,
+        "name": data["name"],
+        "category": data["category"],
+        "stock": int(data["stock"]),
+        "price": int(data["price"]),
+        "location": data["location"],
     }
-    
+
     result_insert = db[MONGODB_COLLECTION_PRODUCTS].insert_one(new_product)
-    
-    return jsonify({
-        "status" : "success",
-        "inserted_id" : str(result_insert.inserted_id),
-        "product" : new_product
-    })
+
+    return jsonify(
+        {
+            "status": "success",
+            "inserted_id": str(result_insert.inserted_id),
+            "product": new_product,
+        }
+    )
     pass
 
-@app.route('/api/data/<string:product_id>', methods=['PUT'])
+
+@app.route("/api/data/<string:product_id>", methods=["PUT"])
 def update_product_id(product_id):
     data = request.get_json()
     update_data = {
-        "name" : data["name"],
-        "category" : data["category"],
-        "stock" : int(data["stock"]),
-        "price" : int(data["price"]),
-        "location" : data["location"]
+        "name": data["name"],
+        "category": data["category"],
+        "stock": int(data["stock"]),
+        "price": int(data["price"]),
+        "location": data["location"],
     }
-    
+
     result = db[MONGODB_COLLECTION_PRODUCTS].update_one(
-        {"_id" : product_id},
-        {"$set" : update_data}
+        {"_id": product_id}, {"$set": update_data}
     )
-    
+
     if result.matched_count == 0:
-        return jsonify({"status" : "error", "message" : "product not found"}), 404
-    
-    return jsonify({
-        "status" : "success",
-        "updated_id" : product_id,
-        "modified_count" : result.modified_count
-    }), 200
+        return jsonify({"status": "error", "message": "product not found"}), 404
+
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "updated_id": product_id,
+                "modified_count": result.modified_count,
+            }
+        ),
+        200,
+    )
+    pass
+
+
+@app.route("/api/data/<string:product_id>", methods=["PATCH"])
+def updatet_stock(product_id):
+    data = request.get_json()
+    qty = data.get("quantity", 1)
+    action = data.get("action")
+
+    product = db[MONGODB_COLLECTION_PRODUCTS].find_one({"_id": product_id})
+    if not product:
+        return jsonify({"status": "error", "messages": "Product not found"}), 404
+
+    currect_stock = int(product["stock"])
+    if action == "add":
+        new_stock = currect_stock + qty
+    elif action == "subtract":
+        new_stock = max(0, currect_stock - qty)
+    else:
+        return jsonify({"error": "invalid action"}), 400
+
+    result = db[MONGODB_COLLECTION_PRODUCTS].update_one(
+        {"_id": product_id}, {"$set": {"stock": new_stock}}
+    )
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": "stock updated",
+                "updated_id": product_id,
+                "new_stock": new_stock,
+                "modified_count": result.modified_count,
+            }
+        ),
+        200,
+    )
     pass
 
 
