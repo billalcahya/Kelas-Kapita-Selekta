@@ -59,6 +59,32 @@ def add_products():
     })
     pass
 
+@app.route('/api/data/<string:product_id>', methods=['PUT'])
+def update_product_id(product_id):
+    data = request.get_json()
+    update_data = {
+        "name" : data["name"],
+        "category" : data["category"],
+        "stock" : int(data["stock"]),
+        "price" : int(data["price"]),
+        "location" : data["location"]
+    }
+    
+    result = db[MONGODB_COLLECTION_PRODUCTS].update_one(
+        {"_id" : product_id},
+        {"$set" : update_data}
+    )
+    
+    if result.matched_count == 0:
+        return jsonify({"status" : "error", "message" : "product not found"}), 404
+    
+    return jsonify({
+        "status" : "success",
+        "updated_id" : product_id,
+        "modified_count" : result.modified_count
+    }), 200
+    pass
+
 
 if __name__ == "__main__":
     app.run(debug=True)

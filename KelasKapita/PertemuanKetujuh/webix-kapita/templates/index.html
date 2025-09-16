@@ -53,7 +53,40 @@
                       });
                   }
                 },
-              },
+              },{
+                view : "button",
+                value : "Update Produk",
+                width : 150,
+                click : function() {
+                  const form = $$("productForm");
+                  const table = $$("productTable");
+                  const selected = table.getSelectedItem();
+
+                  if (!selected) {
+                    webix.message({type : "error", text : "Pilih produk dulu dari tabel"});
+                    return;
+                  }
+
+                  const values = form.getValues();
+                  webix.ajax()
+                  .headers({"Content-Type" : "application/json"})
+                  .put(
+                    `http://127.0.0.1:5000/api/data/${selected._id}`,
+                    JSON.stringify(values)
+                  )
+                  .then(() =>
+                  {
+                    webix.message("Produk berhasil diperbaharui");
+                    table.clearAll();
+                    table.load("http://127.0.0.1:5000/api/data");
+                    form.clear();
+                  })
+                  .catch(err => {
+                    webix.message({type : "error", text : "Gagal memperbarui produk"});
+                    console.error(err);
+                  })
+                }
+              }
             ],
           },
         ],
@@ -68,6 +101,7 @@
       {
         view: "datatable",
         id: "productTable",
+        select : "row",
         columns: [
           { id: "_id", header: "ID" },
           { id: "name", header: "Nama" },
@@ -79,6 +113,12 @@
         url: "http://127.0.0.1:5000/api/data",
         autoheight: true,
         autowidth: true,
+        on : {
+          onAfterSelect : function(id){
+            const item = this.getItem(id);
+            $$("productForm").setValues(item);
+          }
+        }
       },
     ],
   });
