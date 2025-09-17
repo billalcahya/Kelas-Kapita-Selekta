@@ -107,11 +107,11 @@ def updatet_stock(product_id):
     if not product:
         return jsonify({"status": "error", "messages": "Product not found"}), 404
 
-    currect_stock = int(product["stock"])
+    current_stock = int(product["stock"])
     if action == "add":
-        new_stock = currect_stock + qty
+        new_stock = current_stock + qty
     elif action == "subtract":
-        new_stock = max(0, currect_stock - qty)
+        new_stock = max(0, current_stock - qty)
     else:
         return jsonify({"error": "invalid action"}), 400
 
@@ -130,6 +130,14 @@ def updatet_stock(product_id):
         ),
         200,
     )
+    pass
+
+@app.route('/api/data/<string:product_id>', methods=['DELETE'])
+def delete_product(product_id):
+    result = db[MONGODB_COLLECTION_PRODUCTS].delete_one({"_id" : product_id})
+    if result.deleted_count > 0:
+        return jsonify({"status" : "success", "message" : "Product deleted"}), 200
+    return jsonify({"status" : "error", "message" : "Product not found"}),404
     pass
 
 

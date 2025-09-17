@@ -200,6 +200,50 @@
                       });
                   },
                 },
+                {
+                  view: "button",
+                  value: "Delete Produk",
+                  css: "webix_danger",
+                  width: 150,
+                  click: function () {
+                    const table = $$("productTable");
+                    const selected = table.getSelectedItem();
+
+                    if (!selected) {
+                      webix.message({
+                        type: "error",
+                        text: "Pilih produk dulu dari tabel",
+                      });
+                      return;
+                    }
+
+                    webix
+                      .confirm({
+                        title: "Konfirmasi",
+                        text: `Yakin ingin menghapus produk <b>${selected.name}</b>`,
+                        ok: "Ya",
+                        cancel: "Batal",
+                      })
+                      .then(() => {
+                        webix
+                          .ajax()
+                          .del(`http://127.0.0.1:5000/api/data/${selected._id}`)
+                          .then(() => {
+                            webix.message("Produk berhasil dihapus");
+                            table.clearAll();
+                            table.load("http://127.0.0.1:5000/api/data");
+                            $$("productForm").clear();
+                          })
+                          .catch((err) => {
+                            webix.message({
+                              type: "error",
+                              text: "Gagal menghapus produk",
+                            });
+                            console.error(err);
+                          });
+                      });
+                  },
+                },
               ],
             },
           ],
