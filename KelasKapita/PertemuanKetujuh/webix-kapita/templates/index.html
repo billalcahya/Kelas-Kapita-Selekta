@@ -6,6 +6,24 @@
     <title>Halaman Webix</title>
     <link rel="stylesheet" href="https://cdn.webix.com/edge/webix.css" />
     <script src="https://cdn.webix.com/edge/webix.js"></script>
+    <style>
+      .add_btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 3px 8px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      .sub_btn {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 3px 8px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+    </style>
   </head>
   <body>
     <script>
@@ -168,6 +186,12 @@
                 { id: "price", header: "Harga" },
                 { id: "location", header: "Lokasi" },
                 {
+                  id: "quantity",
+                  header: "Jumlah (+/-)",
+                  editor: "text",
+                  width: 100,
+                },
+                {
                   id: "actions",
                   header: "Aksi",
                   template:
@@ -178,21 +202,39 @@
               url: "http://127.0.0.1:5000/api/data",
               autoheight: true,
               autowidth: true,
+              editable: true,
               on: {
+                onAfterLoad: function () {
+                  this.data.each(function (obj) {
+                    if (!obj.quantity) obj.quantity = 1;
+                  });
+                },
                 onAfterSelect: function (id) {
                   const item = this.getItem(id);
                   $$("productForm").setValues(item);
+                },
+                onEditorChange: function (id, value, state) {
+                  if (state.column == "quantity") {
+                    this.getItem(id).quantity = value;
+                  }
+                },
+                onAfterEditStop: function (state, editor, ignoreUpdate) {
+                  if (editor.column == "quantity") {
+                    const item = this.getItem(editor.row);
+                    item.quantity = parseInt(state.value) || 1;
+                  }
                 },
               },
               onClick: {
                 add_btn: function (e, id) {
                   const item = this.getItem(id);
+                  const qty = parseInt(item.quantity || 1);
                   webix
                     .ajax()
                     .headers({ "Content-Type": "application/json" })
                     .patch(
                       `http://127.0.0.1:5000/api/data/${item._id}`,
-                      JSON.stringify({ action: "add", quantity: 1 })
+                      JSON.stringify({ action: "add", quantity: qty })
                     )
                     .then(() => {
                       webix.message("Stok ditambah");
@@ -210,12 +252,13 @@
                 },
                 sub_btn: function (e, id) {
                   const item = this.getItem(id);
+                  const qty = parseInt(item.quantity || 1);
                   webix
                     .ajax()
                     .headers({ "Content-Type": "application/json" })
                     .patch(
                       `http://127.0.0.1:5000/api/data/${item._id}`,
-                      JSON.stringify({ action: "subtract", quantity: 1 })
+                      JSON.stringify({ action: "subtract", quantity: qty })
                     )
                     .then(() => {
                       webix.message("Stok dikurangi");
