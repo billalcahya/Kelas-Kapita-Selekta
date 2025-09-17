@@ -99,6 +99,52 @@
                           });
                       },
                     },
+                    {
+                      view: "button",
+                      value: "Delete Produk",
+                      css: "webix_danger",
+                      width: 150,
+                      click: function () {
+                        const table = $$("productTable");
+                        const selected = table.getSelectedItem();
+
+                        if (!selected) {
+                          webix.message({
+                            type: "error",
+                            text: "Pilih produk dulu dari tabel",
+                          });
+                          return;
+                        }
+
+                        webix
+                          .confirm({
+                            title: "Konfirmasi",
+                            text: `Yakin ingin menghapus produk <b>${selected.name}</b>`,
+                            ok: "Ya",
+                            cancel: "Batal",
+                          })
+                          .then(() => {
+                            webix
+                              .ajax()
+                              .del(
+                                `http://127.0.0.1:5000/api/data/${selected._id}`
+                              )
+                              .then(() => {
+                                webix.message("Produk berhasil dihapus");
+                                table.clearAll();
+                                table.load("http://127.0.0.1:5000/api/data");
+                                $$("productForm").clear();
+                              })
+                              .catch((err) => {
+                                webix.message({
+                                  type: "error",
+                                  text: "Gagal menghapus produk",
+                                });
+                                console.error(err);
+                              });
+                          });
+                      },
+                    },
                   ],
                 },
               ],
@@ -121,6 +167,13 @@
                 { id: "stock", header: "Stok" },
                 { id: "price", header: "Harga" },
                 { id: "location", header: "Lokasi" },
+                {
+                  id: "actions",
+                  header: "Aksi",
+                  template:
+                    "<button class = 'add_btn'>+</button> <button class='sub_btn'>-</button>",
+                  width: 150,
+                },
               ],
               url: "http://127.0.0.1:5000/api/data",
               autoheight: true,
@@ -131,120 +184,54 @@
                   $$("productForm").setValues(item);
                 },
               },
-            },
-            {
-              view: "form",
-              id: "stockForm",
-              elements: [
-                {
-                  view: "text",
-                  label: "Jumlah",
-                  name: "quantity",
-                  value: 1,
-                },
-                {
-                  view: "radio",
-                  label: "Aksi",
-                  name: "action",
-                  options: [
-                    {
-                      id: "add",
-                      value: "Tambah",
-                    },
-                    {
-                      id: "subtract",
-                      value: "Kurangi",
-                    },
-                  ],
-                  value: "add",
-                },
-                {
-                  view: "button",
-                  value: "Update stock",
-                  width: 150,
-                  click: function () {
-                    const table = $$("productTable");
-                    const selected = table.getSelectedItem();
-                    if (!selected) {
+              onClick: {
+                add_btn: function (e, id) {
+                  const item = this.getItem(id);
+                  webix
+                    .ajax()
+                    .headers({ "Content-Type": "application/json" })
+                    .patch(
+                      `http://127.0.0.1:5000/api/data/${item._id}`,
+                      JSON.stringify({ action: "add", quantity: 1 })
+                    )
+                    .then(() => {
+                      webix.message("Stok ditambah");
+                      this.clearAll();
+                      this.load("http://127.0.0.1:5000/api/data");
+                    })
+                    .catch((err) => {
                       webix.message({
                         type: "error",
-                        text: "Pilih produk dulu dari tabel",
+                        text: "Gagal menambah stok",
                       });
-                      return;
-                    }
-
-                    const form = $$("stockForm");
-                    const values = form.getValues();
-                    webix
-                      .ajax()
-                      .headers({ "Content-Type": "application/json" })
-                      .patch(
-                        `http://127.0.0.1:5000/api/data/${selected._id}`,
-                        JSON.stringify({
-                          action: values.action,
-                          quantity: parseInt(values.quantity),
-                        })
-                      )
-                      .then(() => {
-                        webix.message("Stok berhasil diperbarui");
-                        table.clearAll();
-                        table.load("http://127.0.0.1:5000/api/data");
-                        form.clear();
-                      })
-                      .catch((err) => {
-                        webix.message({
-                          type: "error",
-                          text: "Gagal memperbarui stok",
-                        });
-                        console.error(err);
-                      });
-                  },
+                      console.error(err);
+                    });
+                  return false;
                 },
-                {
-                  view: "button",
-                  value: "Delete Produk",
-                  css: "webix_danger",
-                  width: 150,
-                  click: function () {
-                    const table = $$("productTable");
-                    const selected = table.getSelectedItem();
-
-                    if (!selected) {
+                sub_btn: function (e, id) {
+                  const item = this.getItem(id);
+                  webix
+                    .ajax()
+                    .headers({ "Content-Type": "application/json" })
+                    .patch(
+                      `http://127.0.0.1:5000/api/data/${item._id}`,
+                      JSON.stringify({ action: "subtract", quantity: 1 })
+                    )
+                    .then(() => {
+                      webix.message("Stok dikurangi");
+                      this.clearAll();
+                      this.load("http://127.0.0.1:5000/api/data");
+                    })
+                    .catch((err) => {
                       webix.message({
                         type: "error",
-                        text: "Pilih produk dulu dari tabel",
+                        text: "Gagal mengurangi produk",
                       });
-                      return;
-                    }
-
-                    webix
-                      .confirm({
-                        title: "Konfirmasi",
-                        text: `Yakin ingin menghapus produk <b>${selected.name}</b>`,
-                        ok: "Ya",
-                        cancel: "Batal",
-                      })
-                      .then(() => {
-                        webix
-                          .ajax()
-                          .del(`http://127.0.0.1:5000/api/data/${selected._id}`)
-                          .then(() => {
-                            webix.message("Produk berhasil dihapus");
-                            table.clearAll();
-                            table.load("http://127.0.0.1:5000/api/data");
-                            $$("productForm").clear();
-                          })
-                          .catch((err) => {
-                            webix.message({
-                              type: "error",
-                              text: "Gagal menghapus produk",
-                            });
-                            console.error(err);
-                          });
-                      });
-                  },
+                      console.error(err);
+                    });
+                  return false;
                 },
-              ],
+              },
             },
           ],
         });
