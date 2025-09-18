@@ -38,7 +38,22 @@
               id: "productForm",
               elements: [
                 { view: "text", label: "Nama", name: "name" },
-                { view: "text", label: "Kategori", name: "category" },
+                {
+                  view: "richselect",
+                  label: "Kategori",
+                  name: "category",
+                  options: [
+                    { id: "elektronik", value: "Elektronik" },
+                    { id: "aksesoris", value: "Aksesoris" },
+                    { id: "furniture", value: "Furniture" },
+                    {
+                      id: "alat-tulis",
+                      value: "Alat Tulis",
+                      id: "lainnya",
+                      value: "Lainnya",
+                    },
+                  ],
+                },
                 { view: "text", label: "Stok", name: "stock" },
                 { view: "text", label: "Harga", name: "price" },
                 { view: "text", label: "Lokasi", name: "location" },
