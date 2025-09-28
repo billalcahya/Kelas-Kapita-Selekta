@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manajemen Produk Gudang</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f8f9fa;
+      }
+      .hidden {
+        display: none;
+      }
+      .role-admin {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      .role-staff {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      h1 {
+        color: #333;
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      .form-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+      }
+      .form-group {
+        flex: 1;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #555;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+      button {
+        background-color: #28a745;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 5px;
+      }
+      button:hover {
+        background-color: #218838;
+      }
+      .btn-danger {
+        background-color: #dc3545;
+      }
+      .btn-danger:hover {
+        background-color: #c82333;
+      }
+      .btn-warning {
+        background-color: #ffc107;
+        color: #212529;
+      }
+      .btn-warning:hover {
+        background-color: #e0a800;
+      }
+      .btn-info {
+        background-color: #17a2b8;
+      }
+      .btn-info:hover {
+        background-color: #138496;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+      }
+      .price {
+        text-align: right;
+      }
+      .hidden {
+        display: none;
+      }
+      .stock-controls {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+      }
+      .stock-input {
+        width: 60px;
+        padding: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Sistem Manajemen Produk Gudang</h1>
+
+    <div class="user-info">
+      <span>Selamat datang, <strong>{{ username }}</strong></span>
+      <span class="role-{{ role }}"
+        >Role : <strong>{{ role.upper() }}</strong></span
+      >
+      <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+    </div>
+
+ <div class="container {% if role != 'admin' %}hidden{% endif %}" id="formContainer">
+      <h3 id="formTitle">Tambah Produk Baru</h3>
+      <form id="productForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="name">Nama Produk : </label>
+            <input type="text" id="name" name="name" required />
+          </div>
+          <div class="form-group">
+            <label for="category">Kategori : </label>
+            <select name="category" id="category" required>
+              <option value="#">Pilih Kategori</option>
+              <option value="Elektronik">Elektronik</option>
+              <option value="Aksesoris">Aksesoris</option>
+              <option value="Furniture">Furniture</option>
+              <option value="Alat Tulis">Alat Tulis</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="stock">Stok : </label>
+            <input type="number" id="stock" name="stock" min="0" required />
+          </div>
+          <div class="form-group">
+            <label for="price">Harga (Rp) : </label>
+            <input type="number" id="price" name="price" min="0" required />
+          </div>
+          <div class="form-group">
+            <label for="location">Lokasi Gudang : </label>
+            <input
+              type="text"
+              name="location"
+              id="location"
+              placeholder="A1-01"
+              required
+            />
+          </div>
+        </div>
+        <button type="submit" id="submitBtn">Tambah Produk</button>
+        <button type="button" id="cancelBtn" class="btn-warning hidden">
+          Batal
+        </button>
+      </form>
+    </div>
+
+    <div class="container">
+      <h3>Daftar Produk Gudang</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nama Produk</th>
+            <th>Kategori</th>
+            <th>Stok</th>
+            <th>Harga</th>
+            <th>Lokasi</th>
+            <th>Kelola Stok</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="productsBody">
+          </tbody>
+      </table>
+    </div>
+
+    <script>
+      // ==================================
+      // TAHAP 1 : VARIABEL GLOBAL
+      // ==================================
+
+      let editingId = null;
+
+      // ==================================
+      // TAHAP 2 : SHOW PRODUCT (READ)
+      // ==================================
+
+      // Fungsi untuk memuat data produk dari server
+      function loadProducts() {
+        fetch("/api/products")
+          .then((Response) => Response.json())
+          .then((result) => {
+            // Periksa apakah status true dan data ada
+            if (result.status && Array.isArray(result.data)) {
+              displayProducts(result.data);
+            } else {
+              console.error("Failed to load products: ", result.message);
+              // Opsional: tampilkan pesan error ke pengguna
+              document.getElementById("productsBody").innerHTML = `<tr><td colspan="8" style="text-align:center;">${result.message}</td></tr>`;
+            }
+          })
+          .catch((error) => {
+            console.error("Error loading products : ", error);
+          });
+      }
+
+      // Fungsi untuk menampilkan produk di tabel
+      function displayProducts(products) {
+        const tbody = document.getElementById("productsBody");
+        tbody.innerHTML = "";
+
+        if (products.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">Tidak ada data produk.</td></tr>`;
+          return;
+        }
+
+        for (let i = 0; i < products.length; i++) {
+          const product = products[i];
+
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${product._id}</td>
+            <td>${product.name}</td>
+            <td>${product.category}</td>
+            <td>${product.stock}</td>
+            <td class="price">Rp ${product.price}</td>
+            <td>${product.location}</td>
+            <td>
+              <div class="stock-controls">
+                <button onclick="updateStock('${product._id}', 'add')" class="btn-info" title="Tambah Stok">+</button>
+                <input type="number" id="qty-${product._id}" class="stock-input" value="1" min="1">
+                <button onclick="updateStock('${product._id}', 'subtract')" class="btn-warning" title="Kurangi Stok">-</button>
+              </div>
+              </td>
+            <td>
+              <button onclick="editProduct('${product._id}')" class="btn-warning">Edit</button>
+              <button onclick="deleteProduct('${product._id}')" class="btn-danger">Hapus</button>
+            </td>
+        `;
+          tbody.appendChild(row);
+        }
+      }
+
+      // =================================
+      // TAHAP 3 : ADD PRODUCT (CREATE)
+      // =================================
+
+      // Event listener untuk form submit
+      document
+        .getElementById("productForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          const formData = {
+            name: document.getElementById("name").value,
+            category: document.getElementById("category").value,
+            stock: document.getElementById("stock").value,
+            price: document.getElementById("price").value,
+            location: document.getElementById("location").value,
+          };
+
+          if (editingId) {
+            updateProduct(editingId, formData);
+          } else {
+            addProduct(formData);
+          }
+        });
+
+      // Fungsi untuk menambah produk baru
+      function addProduct(formData) {
+        fetch("/api/products", {
+          method: "POST",
+          headers: {
+            "content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        })
+          .then((response) => {
+            if (response.ok) {
+              resetForm();
+              loadProducts();
+            }
+          })
+          .catch((error) => {
+            console.error("Error adding product :", error);
+          });
+      }
+
+      // =======================================
+      // TAHAP 4 : UDPATE PRODUCT (UPDATE)
+      // =======================================
+
+      // Fungsi untuk edit produk (mengisi form dengan data existing)
+      function editProduct(id) {
+        fetch(`/api/products/${id}`)
+          .then((response) => response.json())
+          .then((product) => {
+            document.getElementById("name").value = product.name;
+            document.getElementById("category").value = product.category;
+            document.getElementById("stock").value = product.stock;
+            document.getElementById("price").value = product.price;
+            document.getElementById("location").value = product.location;
+
+            editingId = id;
+            document.getElementById("formTitle").textContent = "Edit Produk";
+            document.getElementById("submitBtn").textContent = "Update Produk";
+            document.getElementById("cancelBtn").classList.remove("hidden");
+          })
+          .catch((error) => {
+            console.error("Error loadig product for edit : ", error);
+          });
+      }
+
+      // Fungsi untuk update produk existing
+      function updateProduct(productId, formData) {
+        fetch(`/api/products/${productId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        })
+          .then((response) => {
+            if (response.ok) {
+              resetForm();
+              loadProducts();
+            }
+          })
+          .catch((error) => {
+            console.error("Error updating produk : ", error);
+          });
+      }
+
+      // ========================================
+      // TAHAP 5 : DELETE PRODUCT (DELETE)
+      // ========================================
+
+      function deleteProduct(productId) {
+        if (!confirm("Apakah yakin ingin menghapus produk ini?")) {
+          return;
+        }
+
+        fetch(`/api/products/${productId}`, {
+          method: "DELETE",
+        })
+          .then((response) => {
+            if (response.ok) {
+              loadProducts(); // Refresh daftar produk
+            } else {
+              console.error("Gagal menghapus produk");
+            }
+          })
+          .catch((error) => {
+            console.error("Error deleting product : ", error);
+          });
+      }
+
+      // ========================================
+      // TAHAP 6 : STOK MANAGEMENT (BONUS)
+      // ========================================
+
+      // Fungi untuk update stock
+      function updateStock(productId, action) {
+        const qtyInput = document.getElementById(`qty-${productId}`);
+        let quantity = parseInt(qtyInput.value);
+
+        if (isNaN(quantity) || quantity < 1) {
+          quantity = 1;
+        }
+
+        fetch(`/api/products/${productId}/stock`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: action,
+            quantity: quantity,
+          }),
+        })
+          .then((response) => {
+            if (response.ok) {
+              loadProducts();
+            } else {
+              console.error("Failded to update stock");
+            }
+          })
+          .catch((error) => {
+            console.error("Error updating stock : ", error);
+          });
+      }
+
+      // ========================================
+      // TAHAP 7 : HELPER FUNCTIONS
+      // ========================================
+
+      // Fungi untuk reset form
+      function resetForm() {
+        document.getElementById("productForm").reset();
+        editingId = null;
+        document.getElementById("formTitle").textContent = "Tambah Produk Baru";
+        document.getElementById("submitBtn").textContent = "Tambah Produk";
+        document.getElementById("cancelBtn").classList.add("hidden");
+      }
+
+      // Event listener untuk tombol cancel
+      document.getElementById("cancelBtn").addEventListener("click", resetForm);
+
+      // ========================================
+      // TAHAP 8: INITIALIZATION
+      // ========================================
+
+      // Load data saat halaman pertama kali dibuka
+      document.addEventListener("DOMContentLoaded", loadProducts);
+    </script>
+  </body>
+</html>

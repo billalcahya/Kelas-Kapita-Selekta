@@ -1,0 +1,8 @@
+flask
+Flask-RESTful
+requests
+Flask-Cors
+PyJWT
+pymongo
+black
+redis

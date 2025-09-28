@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Halaman Webix</title>
+    <link rel="stylesheet" href="https://cdn.webix.com/edge/webix.css" />
+    <script src="https://cdn.webix.com/edge/webix.js"></script>
+    <style>
+      .add_btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 3px 8px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      .sub_btn {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 3px 8px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      webix.ready(function () {
+        if ($$("productForm")) $$("productForm").destructor();
+        if ($$("productTable")) $$("productTable").destructor();
+
+        webix.ui({
+          rows: [
+            {
+              view: "form",
+              id: "productForm",
+              elements: [
+                { view: "text", label: "Nama", name: "name" },
+                {
+                  view: "richselect",
+                  label: "Kategori",
+                  name: "category",
+                  options: [
+                    { id: "elektronik", value: "Elektronik" },
+                    { id: "aksesoris", value: "Aksesoris" },
+                    { id: "furniture", value: "Furniture" },
+                    {
+                      id: "alat-tulis",
+                      value: "Alat Tulis",
+                      id: "lainnya",
+                      value: "Lainnya",
+                    },
+                  ],
+                },
+                { view: "text", label: "Stok", name: "stock" },
+                { view: "text", label: "Harga", name: "price" },
+                { view: "text", label: "Lokasi", name: "location" },
+                {
+                  cols: [
+                    {
+                      view: "button",
+                      value: "Tambah Produk",
+                      width: 150,
+                      click: function () {
+                        const form = $$("productForm");
+                        if (form.validate()) {
+                          const values = form.getValues();
+                          webix
+                            .ajax()
+                            .headers({ "Content-Type": "application/json" })
+                            .post(
+                              "http://127.0.0.1:5000/api/data",
+                              JSON.stringify(values)
+                            )
+                            .then(function (res) {
+                              webix.message("Produk berhasil ditambahkan");
+                              $$("productTable").clearAll();
+                              $$("productTable").load(
+                                "http://127.0.0.1:5000/api/data"
+                              );
+                              form.clear();
+                            })
+                            .catch(function (err) {
+                              webix.message({
+                                type: "error",
+                                text: "Gagal menambahkan produk",
+                              });
+                              console.error(err);
+                            });
+                        }
+                      },
+                    },
+                    {
+                      view: "button",
+                      value: "Update Produk",
+                      width: 150,
+                      click: function () {
+                        const form = $$("productForm");
+                        const table = $$("productTable");
+                        const selected = table.getSelectedItem();
+
+                        if (!selected) {
+                          webix.message({
+                            type: "error",
+                            text: "Pilih produk dulu dari tabel",
+                          });
+                          return;
+                        }
+
+                        const values = form.getValues();
+                        webix
+                          .ajax()
+                          .headers({ "Content-Type": "application/json" })
+                          .put(
+                            `http://127.0.0.1:5000/api/data/${selected._id}`,
+                            JSON.stringify(values)
+                          )
+                          .then(() => {
+                            webix.message("Produk berhasil diperbaharui");
+                            table.clearAll();
+                            table.load("http://127.0.0.1:5000/api/data");
+                            form.clear();
+                          })
+                          .catch((err) => {
+                            webix.message({
+                              type: "error",
+                              text: "Gagal memperbarui produk",
+                            });
+                            console.error(err);
+                          });
+                      },
+                    },
+                    {
+                      view: "button",
+                      value: "Delete Produk",
+                      css: "webix_danger",
+                      width: 150,
+                      click: function () {
+                        const table = $$("productTable");
+                        const selected = table.getSelectedItem();
+
+                        if (!selected) {
+                          webix.message({
+                            type: "error",
+                            text: "Pilih produk dulu dari tabel",
+                          });
+                          return;
+                        }
+
+                        webix
+                          .confirm({
+                            title: "Konfirmasi",
+                            text: `Yakin ingin menghapus produk <b>${selected.name}</b>`,
+                            ok: "Ya",
+                            cancel: "Batal",
+                          })
+                          .then(() => {
+                            webix
+                              .ajax()
+                              .del(
+                                `http://127.0.0.1:5000/api/data/${selected._id}`
+                              )
+                              .then(() => {
+                                webix.message("Produk berhasil dihapus");
+                                table.clearAll();
+                                table.load("http://127.0.0.1:5000/api/data");
+                                $$("productForm").clear();
+                              })
+                              .catch((err) => {
+                                webix.message({
+                                  type: "error",
+                                  text: "Gagal menghapus produk",
+                                });
+                                console.error(err);
+                              });
+                          });
+                      },
+                    },
+                  ],
+                },
+              ],
+              rules: {
+                name: webix.rules.isNotEmpty,
+                category: webix.rules.isNotEmpty,
+                stock: webix.rules.isNumber,
+                price: webix.rules.isNumber,
+                location: webix.rules.isNotEmpty,
+              },
+            },
+            {
+              view: "datatable",
+              id: "productTable",
+              select: "row",
+              columns: [
+                { id: "_id", header: "ID" },
+                { id: "name", header: "Nama" },
+                { id: "category", header: "Kategori" },
+                { id: "stock", header: "Stok" },
+                { id: "price", header: "Harga" },
+                { id: "location", header: "Lokasi" },
+                {
+                  id: "quantity",
+                  header: "Jumlah (+/-)",
+                  editor: "text",
+                  width: 100,
+                },
+                {
+                  id: "actions",
+                  header: "Aksi",
+                  template:
+                    "<button class = 'add_btn'>+</button> <button class='sub_btn'>-</button>",
+                  width: 150,
+                },
+              ],
+              url: "http://127.0.0.1:5000/api/data",
+              autoheight: true,
+              autowidth: true,
+              editable: true,
+              on: {
+                onAfterLoad: function () {
+                  this.data.each(function (obj) {
+                    if (!obj.quantity) obj.quantity = 1;
+                  });
+                },
+                onAfterSelect: function (id) {
+                  const item = this.getItem(id);
+                  $$("productForm").setValues(item);
+                },
+                onEditorChange: function (id, value, state) {
+                  if (state.column == "quantity") {
+                    this.getItem(id).quantity = value;
+                  }
+                },
+                onAfterEditStop: function (state, editor, ignoreUpdate) {
+                  if (editor.column == "quantity") {
+                    const item = this.getItem(editor.row);
+                    item.quantity = parseInt(state.value) || 1;
+                  }
+                },
+              },
+              onClick: {
+                add_btn: function (e, id) {
+                  const item = this.getItem(id);
+                  const qty = parseInt(item.quantity || 1);
+                  webix
+                    .ajax()
+                    .headers({ "Content-Type": "application/json" })
+                    .patch(
+                      `http://127.0.0.1:5000/api/data/${item._id}`,
+                      JSON.stringify({ action: "add", quantity: qty })
+                    )
+                    .then(() => {
+                      webix.message("Stok ditambah");
+                      this.clearAll();
+                      this.load("http://127.0.0.1:5000/api/data");
+                    })
+                    .catch((err) => {
+                      webix.message({
+                        type: "error",
+                        text: "Gagal menambah stok",
+                      });
+                      console.error(err);
+                    });
+                  return false;
+                },
+                sub_btn: function (e, id) {
+                  const item = this.getItem(id);
+                  const qty = parseInt(item.quantity || 1);
+                  webix
+                    .ajax()
+                    .headers({ "Content-Type": "application/json" })
+                    .patch(
+                      `http://127.0.0.1:5000/api/data/${item._id}`,
+                      JSON.stringify({ action: "subtract", quantity: qty })
+                    )
+                    .then(() => {
+                      webix.message("Stok dikurangi");
+                      this.clearAll();
+                      this.load("http://127.0.0.1:5000/api/data");
+                    })
+                    .catch((err) => {
+                      webix.message({
+                        type: "error",
+                        text: "Gagal mengurangi produk",
+                      });
+                      console.error(err);
+                    });
+                  return false;
+                },
+              },
+            },
+          ],
+        });
+      });
+    </script>
+  </body>
+</html>
