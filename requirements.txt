@@ -6,3 +6,4 @@ PyJWT
 pymongo
 black
 redis
+flask-session
