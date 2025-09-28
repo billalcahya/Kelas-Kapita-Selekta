@@ -4,5 +4,9 @@ requests
 Flask-Cors
 PyJWT
 pymongo
+<<<<<<< HEAD
 black
 redis
+=======
+black
+>>>>>>> ac458e39d145e283c523ef63805a7ff8fd2d0503

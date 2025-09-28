@@ -60,6 +60,10 @@ def check_admin():
 def logout():
     session.clear()
     flash("Logout berhasil!", "success")
+<<<<<<< HEAD
+=======
+    return redirect(url_for("login"))
+>>>>>>> ac458e39d145e283c523ef63805a7ff8fd2d0503
 
 
 @app.route("/login", methods=["GET", "POST"])
