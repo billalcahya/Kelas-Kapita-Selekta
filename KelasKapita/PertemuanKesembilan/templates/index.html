@@ -24,30 +24,34 @@
         border-radius: 4px;
       }
     </style>
-    <style>
-      .add_btn {
-        background: #28a745;
-        color: white;
-        border: none;
-        padding: 3px 8px;
-        cursor: pointer;
-        border-radius: 4px;
-      }
-      .sub_btn {
-        background: #dc3545;
-        color: white;
-        border: none;
-        padding: 3px 8px;
-        cursor: pointer;
-        border-radius: 4px;
-      }
-    </style>
   </head>
   <body>
     <script>
       // sanitasi untuk mencegah xss
       function sanitize(input) {
         return String(input).replace(/[<>]/g, "");
+      }
+
+      // reload data
+      function reloadTable() {
+        webix
+          .ajax()
+          .get("http://127.0.0.1:5000/api/data?t=" + Date.now())
+          .then(function (res) {
+            const result = res.json();
+            if (result.products) {
+              $$("productTable").clearAll();
+              $$("productTable").parse(result.products);
+            } else {
+              webix.message({
+                type: "error",
+                text: "Format data tidak sesuai",
+              });
+            }
+          })
+          .catch(function () {
+            webix.message({ type: "error", text: "Gagal reload data" });
+          });
       }
 
       webix.ready(function () {
@@ -174,14 +178,8 @@
                               text: "Produk berhasil ditambahkan",
                             });
                             form.clear();
-
+                            reloadTable();
                             // update table
-                            if ($$("productTable")) {
-                              $$("productTable").clearAll();
-                              $$("productTable").load(
-                                "http://127.0.0.1:5000/api/data"
-                              );
-                            }
                           } else {
                             webix.message({
                               type: "error",
@@ -199,12 +197,141 @@
                         }
                       },
                     },
+                    {
+                      view: "button",
+                      id: "updateBtn",
+                      value: "Update Produk",
+                      css: "webix_primary",
+                      click: async function () {
+                        const form = $$("productForm");
+
+                        if (!form.validate()) {
+                          webix.message({
+                            type: "error",
+                            text: "Periksa kembali form input kamu",
+                          });
+                          return;
+                        }
+
+                        let values = form.getValues();
+
+                        for (let key in values) {
+                          values[key] = sanitize(values[key]);
+                        }
+
+                        if (parseInt(values.stock) < 0) {
+                          webix.message({
+                            type: "error",
+                            message: "Stok tidak boleh negatif",
+                          });
+                          return;
+                        }
+
+                        if (parseInt(values.price) < 0) {
+                          webix.message({
+                            type: "error",
+                            message: "Harga tidak boleh negatif",
+                          });
+                          return;
+                        }
+
+                        // pastikan id jika tidak ada maka tidak bisa update
+                        if (!values._id) {
+                          webix.message({
+                            type: "error",
+                            text: "ID produk tidak ditemukan",
+                          });
+                          return;
+                        }
+
+                        this.disable();
+
+                        try {
+                          let response = await webix
+                            .ajax()
+                            .headers({ "Content-Type": "application/json" })
+                            .put(
+                              `http://127.0.0.1:5000/api/data/${values._id}`,
+                              JSON.stringify(values)
+                            );
+
+                          let res = response.json();
+
+                          if (res.status === "success") {
+                            webix.message({
+                              type: "success",
+                              text: "Produk berhasil diperharui",
+                            });
+                            form.clear();
+                            reloadTable();
+
+                          } else {
+                            webix.message({
+                              type: "error",
+                              text: res.message || "Gagal mengupdate produk",
+                            });
+                          }
+                        } catch (err) {
+                          webix.message({
+                            type: "error",
+                            text: "Terjadi kesalahan saat mengirim data",
+                          });
+                        } finally {
+                          this.enable();
+                        }
+                      },
+                    },
                   ],
                 },
               ],
             },
+            {
+              view: "datatable",
+              id: "productTable",
+              select: "row",
+              columns: [
+                { id: "_id", header: "ID" },
+                { id: "name", header: "Nama" },
+                { id: "category", header: "Kategori" },
+                { id: "stock", header: "Stok" },
+                { id: "price", header: "Harga" },
+                { id: "location", header: "Lokasi" },
+              ],
+              autoheight: true,
+              autowidth: true,
+              data: [],
+              on: {
+                onAfterSelect: function (id) {
+                  const item = this.getItem(id);
+                  $$("productForm").setValues(item);
+                },
+              },
+            },
           ],
         });
+
+        // ambil data dari mongo menggunakan ajax
+        webix
+          .ajax()
+          .get("http://127.0.0.1:5000/api/data")
+          .then(function (res) {
+            const result = res.json();
+            console.log("Data dari API : ", result);
+
+            if (result.products) {
+              $$("productTable").parse(result.products);
+              webix.message("Data produk berhasil dimuat");
+            } else {
+              webix.message({ type: "error", text: "Tidak ada data produk" });
+            }
+          })
+          .catch(function (err) {
+            console.error(err);
+            webix.message({
+              type: "error",
+              text: "Gagal memuat data dari server",
+            });
+          });
       });
     </script>
   </body>
