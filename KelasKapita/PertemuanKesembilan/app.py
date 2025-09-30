@@ -95,6 +95,19 @@ def index():
     return render_template("index.html", username = session["username"], role = session["role"])
     pass
 
+
+@app.route('/api/data', methods=['GET'])
+def get_all_products():
+    auth_check = check_login()
+    if auth_check:
+        return auth_check
+
+    products = list(db[MONGO_COLLECTION_PRODUCTS].find())
+    for p in products:
+        p["_id"] = str(p["_id"])
+    return jsonify({"status": "success", "products": products}), 200
+
+
 @app.route('/api/data/<string:product_id>', methods=['GET'])
 def get_product_by_id(product_id):
     auth_check = check_login()

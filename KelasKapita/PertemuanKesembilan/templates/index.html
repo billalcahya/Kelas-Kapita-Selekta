@@ -1,11 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard</title>
-</head>
-<body>
-    
-</body>
+    <link rel="stylesheet" href="https://cdn.webix.com/edge/webix.css" />
+    <script src="https://cdn.webix.com/edge/webix.js"></script>
+    <style>
+      .add_btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 3px 8px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      .sub_btn {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 3px 8px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+    </style>
+    <style>
+      .add_btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 3px 8px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      .sub_btn {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 3px 8px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      // sanitasi untuk mencegah xss
+      function sanitize(input) {
+        return String(input).replace(/[<>]/g, "");
+      }
+
+      webix.ready(function () {
+        webix.ui({
+          rows: [
+            {
+              view: "form",
+              id: "productForm",
+              rules: {
+                name: webix.rules.isNotEmpty,
+                category: webix.rules.isNotEmpty,
+                location: webix.rules.isNotEmpty,
+                price: function (value) {
+                  return /^[0-9]+$/.test(value);
+                },
+                stock: function (value) {
+                  return /^[0-9]+$/.test(value);
+                },
+              },
+              elements: [
+                {
+                  view: "text",
+                  label: "Nama",
+                  name: "name",
+                  required: true,
+                  invalidMessage: "Nama wajib diisi ",
+                },
+                {
+                  view: "richselect",
+                  label: "Kategori",
+                  name: "category",
+                  required: true,
+                  invalidMessage: "Kategori wajib dipilih",
+                  options: [
+                    { id: "elektronik", value: "Elektronik" },
+                    { id: "aksesoris", value: "Aksesoris" },
+                    { id: "furniture", value: "Furniture" },
+                    { id: "alat-tulis", value: "Alat tulis" },
+                    { id: "lainnya", value: "Lainnya..." },
+                  ],
+                },
+                {
+                  view: "text",
+                  label: "Stok",
+                  name: "stock",
+                  required: true,
+                  invalidMessage: "Stok harap diisi dengan angka yang valid",
+                },
+                {
+                  view: "text",
+                  label: "Harga",
+                  name: "price",
+                  required: true,
+                  invalidMessage: "Harga harap diisi dengan angka yang valid",
+                },
+                {
+                  view: "text",
+                  label: "Lokasi",
+                  name: "location",
+                  required: true,
+                  invalidMessage: "Lokasi stok wajib diisi",
+                },
+                {
+                  cols: [
+                    {
+                      view: "button",
+                      id: "subitBtn",
+                      value: "Tambah produk",
+                      css: "webix_primary",
+
+                      click: async function () {
+                        const form = $$("productForm");
+
+                        // validasi form dasar required dan pattern
+                        if (!form.validate()) {
+                          webix.message({
+                            type: "error",
+                            text: "Periksa kembali input form kamu",
+                          });
+                          return;
+                        }
+
+                        let values = form.getValues();
+
+                        // sanitasi input
+                        for (let key in values) {
+                          values[key] = sanitize(values[key]);
+                        }
+
+                        // validasi  untuk cek stok dan harga yang benar
+                        if (parseInt(values.stock) < 0) {
+                          webix.message({
+                            type: "error",
+                            text: "Stok tidak boleh negatif",
+                          });
+                          return;
+                        }
+
+                        if (parseInt(values.price) < 0) {
+                          webix.message({
+                            type: "error",
+                            text: "Harga tidak boleh negatif",
+                          });
+                          return;
+                        }
+
+                        // kirim data ke backend
+                        this.disable();
+
+                        try {
+                          let response = await webix
+                            .ajax()
+                            .headers({ "Content-Type": "application/json" })
+                            .post(
+                              "http://127.0.0.1:5000/api/data",
+                              JSON.stringify(values)
+                            );
+
+                          let res = response.json();
+
+                          if (res.status === "success") {
+                            webix.message({
+                              type: "success",
+                              text: "Produk berhasil ditambahkan",
+                            });
+                            form.clear();
+
+                            // update table
+                            if ($$("productTable")) {
+                              $$("productTable").clearAll();
+                              $$("productTable").load(
+                                "http://127.0.0.1:5000/api/data"
+                              );
+                            }
+                          } else {
+                            webix.message({
+                              type: "error",
+                              text: res.message || "Gagal menambahkan produk",
+                            });
+                          }
+                        } catch (err) {
+                          console.error(err);
+                          webix.message({
+                            type: "error",
+                            text: "Terjadi kesalahan saat mengirim data",
+                          });
+                        } finally {
+                          this.enable();
+                        }
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        });
+      });
+    </script>
+  </body>
 </html>
