@@ -264,7 +264,6 @@
                             });
                             form.clear();
                             reloadTable();
-
                           } else {
                             webix.message({
                               type: "error",
@@ -281,6 +280,62 @@
                         }
                       },
                     },
+                    {
+                      view: "button",
+                      id: "deleteBtn",
+                      value: "Hapus produk",
+                      css: "webix_danger",
+                      click: async function () {
+                        const form = $$("productForm");
+                        const values = form.getValues();
+
+                        if (!values._id) {
+                          webix.message({
+                            type: "error",
+                            text: "Pilih produk dari tabel dulu",
+                          });
+                          return;
+                        }
+
+                        const confirm = await webix.confirm(
+                          "Yakin ingin menghapus produk ini?"
+                        );
+                        if (!confirm) return;
+
+                        this.disable();
+
+                        try {
+                          let response = await webix
+                            .ajax()
+                            .del(
+                              "http://127.0.0.1:5000/api/data/" + values._id
+                            );
+
+                          let result = response.json();
+
+                          if (result.status === "success") {
+                            webix.message({
+                              type: "success",
+                              text: "Produk berhasil dihapus",
+                            });
+                            form.clear();
+                            reloadTable();
+                          } else {
+                            webix.message({
+                              type: "error",
+                              text: result.message || "Gagal menghapus",
+                            });
+                          }
+                        } catch (err) {
+                          webix.message({
+                            type: "error",
+                            text: "Gagal mengirimkan permintaan hapus",
+                          });
+                        } finally {
+                          this.enable();
+                        }
+                      },
+                    },
                   ],
                 },
               ],
@@ -291,11 +346,22 @@
               select: "row",
               columns: [
                 { id: "_id", header: "ID" },
-                { id: "name", header: "Nama" },
+                { id: "name", header: "Nama", width: 150 },
                 { id: "category", header: "Kategori" },
                 { id: "stock", header: "Stok" },
                 { id: "price", header: "Harga" },
                 { id: "location", header: "Lokasi" },
+                {
+                  id: "actions",
+                  header: "Aksi",
+                  template: function (obj) {
+                    return ` 
+                <span style="cursor:pointer; color:green;" class="addStock" data-id="${obj._id}"> + </span>
+                <span style="cursor:pointer; color:red; margin-left:10px;" class="subStock" data-id="${obj._id}"> - </span>
+                `;
+                  },
+                  width: 150,
+                },
               ],
               autoheight: true,
               autowidth: true,
@@ -308,6 +374,53 @@
               },
             },
           ],
+        });
+
+        // setelah webix.ui selesai render
+        $$("productTable").$view.addEventListener("click", async function (e) {
+          if (
+            e.target.classList.contains("addStock") ||
+            e.target.classList.contains("subStock")
+          ) {
+            const productId = e.target.dataset.id;
+            const action = e.target.classList.contains("addStock")
+              ? "add"
+              : "subtract";
+
+            const qty = await webix.prompt("Masukkan jumlah stok:");
+            if (!qty || isNaN(qty) || qty <= 0) {
+              webix.message({ type: "error", text: "Jumlah tidak valid" });
+              return;
+            }
+
+            try {
+              const response = await webix
+                .ajax()
+                .headers({ "Content-Type": "application/json" })
+                .patch(
+                  `http://127.0.0.1:5000/api/data/${productId}`,
+                  JSON.stringify({ action: action, quantity: parseInt(qty) })
+                );
+
+              const res = response.json();
+              if (res.status === "success") {
+                webix.message({
+                  type: "success",
+                  text: `Stok berhasil ${
+                    action === "add" ? "ditambah" : "dikurangi"
+                  }`,
+                });
+                reloadTable();
+              } else {
+                webix.message({
+                  type: "error",
+                  text: res.message || "Gagal mengubah stok",
+                });
+              }
+            } catch (err) {
+              webix.message({ type: "error", text: "Gagal mengirim PATCH" });
+            }
+          }
         });
 
         // ambil data dari mongo menggunakan ajax
